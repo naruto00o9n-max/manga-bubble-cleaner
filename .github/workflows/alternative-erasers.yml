@@ -1,0 +1,48 @@
+name: Alternative eraser APK research
+on:
+  push:
+    branches: [research/retouch-emulator-20261015]
+    paths:
+      - .github/workflows/alternative-erasers.yml
+      - tools/retouch-lab/alternative_probe.py
+      - tools/retouch-lab/alternative-apps.json
+      - tools/retouch-lab/download_alternative.py
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [snapedit, removeit, picwish]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Prepare research dependencies and KVM
+        run: |
+          sudo chmod 666 /dev/kvm
+          python -m pip install 'Pillow>=11,<13' 'requests>=2.32,<3' 'opencv-python-headless>=4.10,<5'
+      - name: Download and verify inspected APK
+        run: python tools/retouch-lab/download_alternative.py ${{ matrix.app }} /tmp/alternative.apk
+      - uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          force-avd-creation: true
+          disable-animations: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
+          script: python tools/retouch-lab/alternative_probe.py --app ${{ matrix.app }} --apk /tmp/alternative.apk --out run-output/${{ matrix.app }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: alternative-${{ matrix.app }}
+          path: run-output/
+          retention-days: 7

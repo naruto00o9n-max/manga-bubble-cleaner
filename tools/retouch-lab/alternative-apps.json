@@ -1,0 +1,42 @@
+[
+  {
+    "name": "snapedit",
+    "package": "snapedit.app.remove",
+    "version": "7.8",
+    "code": "463",
+    "main": "snapedit.app.remove.screen.splash.SplashScreenActivity",
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a"
+    ],
+    "sha256": "991237d9b6c100acbe2e9e5587a8739a45bd034b7626e0da081978e915ba02e8",
+    "source_page": "https://getmodsapk.com/snapedit-mod-apk/download/630402",
+    "share_activity": "snapedit.app.remove.screen.home.HomeComposeActivity"
+  },
+  {
+    "name": "removeit",
+    "package": "com.vyroai.objectremover",
+    "version": "3.8.8",
+    "code": "155",
+    "main": "com.vyroai.objectremover.ui.MainActivity",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "sha256": "0e592a67619755cdf28560f3691dfdcf832b88c9c5d17b77abc9e803658545cf",
+    "source_page": "https://getmodsapk.com/remove-it-mod-apk/download/537181",
+    "share_activity": "com.vyroai.objectremover.ui.MainActivity"
+  },
+  {
+    "name": "picwish",
+    "package": "com.wangxutech.picwish",
+    "version": "2.3.3",
+    "code": "148",
+    "main": "com.wangxutech.picwish.module.main.ui.splash.SplashActivity",
+    "abis": [
+      "arm64-v8a"
+    ],
+    "sha256": "52602a338f725cbd4fdabd9c826e0cc6a8f84366773bf0cddba956d917a504dd",
+    "source_page": "https://leeapk.com/picwish-mod-apk/download/",
+    "share_activity": null
+  }
+]

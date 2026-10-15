@@ -15,6 +15,7 @@ import requests
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--app", required=True)
+parser.add_argument("--block-network", action="store_true", help="Block emulator non-loopback IPv4 and IPv6 before drawing the mask")
 parser.add_argument("--apk", required=True, type=Path)
 parser.add_argument("--out", required=True, type=Path)
 args = parser.parse_args()
@@ -208,6 +209,15 @@ try:
         report["status"] = "ui_recorded_sample_not_opened"
         geometry = None
     if geometry:
+        if args.block_network:
+            report["network_test"] = "requested"
+            adb("root")
+            adb("wait-for-device", timeout=30)
+            if adb("shell", "id", "-u").stdout.strip() != b"0":
+                raise RuntimeError("Cannot verify offline mode: emulator did not provide root")
+            for firewall in ("iptables", "ip6tables"):
+                adb("shell", firewall, "-I", "OUTPUT", "1", "!", "-o", "lo", "-j", "REJECT")
+            report["network_test"] = "non_loopback_ipv4_and_ipv6_blocked_before_mask"
         tap_label(nodes, ["Manual", "Brush", "Eraser"])
         screen, nodes = capture("before-selection")
         score, geometry = locate(screen)
@@ -259,6 +269,10 @@ except Exception as error:
         pass
 finally:
     try:
+        if args.block_network and report.get("network_test") == "non_loopback_ipv4_and_ipv6_blocked_before_mask":
+            for firewall in ("iptables", "ip6tables"):
+                report[firewall + "_after_test"] = adb("shell", firewall, "-L", "OUTPUT", "-n", "-v", check=False).stdout.decode(errors="replace")
+                adb("shell", firewall, "-D", "OUTPUT", "!", "-o", "lo", "-j", "REJECT", check=False)
         report["abi_list"] = adb("shell", "getprop", "ro.product.cpu.abilist", check=False).stdout.decode().strip()
         activity = adb("shell", "dumpsys", "activity", "activities", check=False, timeout=15).stdout.decode(errors="replace")
         report["foreground_activity"] = [line.strip() for line in activity.splitlines() if "mResumedActivity" in line or "topResumedActivity" in line]

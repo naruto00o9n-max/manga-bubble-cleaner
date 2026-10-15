@@ -184,6 +184,10 @@ try:
                 editor_requested = True
                 time.sleep(4)
                 continue
+            if args.app == "removeit" and not editor_requested and tap_id(nodes, ["btn_remover"]):
+                editor_requested = True
+                time.sleep(4)
+                continue
             report["status"] = "sample_opened"
             break
         if paywall(nodes):
@@ -199,7 +203,7 @@ try:
             pass
         elif gallery_choice(nodes):
             pass
-        elif tap_label(nodes, ["Remove objects", "Remove Objects", "Object Remover", "Object Removal", "Retouch", "Photo Retouch", "Remove", "Manual", "Photo Eraser", "Start editing", "Start Editing Now", "Gallery", "Photos"]):
+        elif tap_label(nodes, ["Remove objects", "Remove Objects", "Object Remover", "Object Removal", "Remove Object", "AI Retouch", "Remove Unwanted Objects", "Retouch", "Photo Retouch", "Remove", "Manual", "Photo Eraser", "Start editing", "Start Editing Now", "Gallery", "Photos"]):
             pass
         elif tap_id(nodes, ["remove_object", "object_remov", "retouch", "eraser", "gallery", "import", "photo_picker"]):
             pass
@@ -218,7 +222,7 @@ try:
             for firewall in ("iptables", "ip6tables"):
                 adb("shell", firewall, "-I", "OUTPUT", "1", "!", "-o", "lo", "-j", "REJECT")
             report["network_test"] = "non_loopback_ipv4_and_ipv6_blocked_before_mask"
-        tap_label(nodes, ["Manual", "Brush", "Eraser"])
+        tap_label(nodes, ["Manual", "Brush", "Draw", "Eraser"])
         screen, nodes = capture("before-selection")
         score, geometry = locate(screen)
         if score > 0.70:
@@ -231,7 +235,7 @@ try:
             apply_labels = ["Remove", "Erase", "GO", "Go", "Apply", "Done"]
             if paywall(nodes):
                 report["status"] = "payment_required_before_processing"
-            elif tap_label(nodes, apply_labels) or tap_id(nodes, ["btn_remove", "btn_erase", "btn_apply", "action_apply"]):
+            elif (args.app == "removeit" and tap_id(nodes, ["ibaccept"])) or tap_label(nodes, apply_labels) or tap_id(nodes, ["btn_remove", "btn_erase", "btn_apply", "action_apply", "ibaccept"]):
                 report["apply_button_found"] = True
                 time.sleep(25)
                 screen, nodes = capture("after-erase")
@@ -239,7 +243,7 @@ try:
                     report["status"] = "payment_required_after_selection"
                 else:
                     report["status"] = "erase_attempt_recorded"
-                    if tap_label(nodes, ["Done"]):
+                    if tap_label(nodes, ["Done"]) or (args.app == "removeit" and tap_id(nodes, ["ibaccept"])):
                         time.sleep(3)
                         _, nodes = capture("tool-finalized")
                     if tap_label(nodes, ["Save", "Export", "Download"]) or tap_id(nodes, ["btn_save", "action_save", "iv_save", "save_image", "btn_export"]):

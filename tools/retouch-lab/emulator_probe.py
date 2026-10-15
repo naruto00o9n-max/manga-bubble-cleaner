@@ -179,6 +179,9 @@ finally:
         crash = adb("logcat", "-d", "-b", "crash", timeout=20, check=False).stdout
         (args.out / "android-crash.log").write_bytes(crash)
         report["abi_list"] = adb("shell", "getprop", "ro.product.cpu.abilist", timeout=10, check=False).stdout.decode(errors="replace").strip()
+        activity = adb("shell", "dumpsys", "activity", "activities", timeout=15, check=False).stdout.decode(errors="replace")
+        report["foreground_activity"] = [line.strip() for line in activity.splitlines()
+                                         if "mResumedActivity" in line or "topResumedActivity" in line]
     except Exception:
         pass
     (args.out / "report.json").write_text(json.dumps(report, indent=2))

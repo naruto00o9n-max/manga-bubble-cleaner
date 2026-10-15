@@ -89,7 +89,7 @@ def text_of(nodes):
 
 def paywall(nodes):
     value = text_of(nodes)
-    return bool(re.search(r"\$\s*\d|\d[.,]\d{2}\s*(?:usd|/week|/month)|start free trial|subscribe now|buy credits|purchase credits", value))
+    return bool(re.search(r"\$\s*\d|\d[.,]\d{2}\s*(?:usd|/week|/month)|start free trial|start your 3-day trial|subscribe now|buy credits|purchase credits", value))
 
 
 def locate(screen):
@@ -184,7 +184,7 @@ try:
             pass
         elif gallery_choice(nodes):
             pass
-        elif tap_label(nodes, ["Remove objects", "Remove Objects", "Object Remover", "Object Removal", "Retouch", "Photo Retouch", "Remove", "Manual", "Photo Eraser", "Start editing", "Gallery", "Photos"]):
+        elif tap_label(nodes, ["Remove objects", "Remove Objects", "Object Remover", "Object Removal", "Retouch", "Photo Retouch", "Remove", "Manual", "Photo Eraser", "Start editing", "Start Editing Now", "Gallery", "Photos"]):
             pass
         elif tap_id(nodes, ["remove_object", "object_remov", "retouch", "eraser", "gallery", "import", "photo_picker"]):
             pass

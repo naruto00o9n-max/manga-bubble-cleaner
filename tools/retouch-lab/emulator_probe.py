@@ -99,6 +99,17 @@ try:
     remote = "/sdcard/Pictures/retouch-probe.png"
     adb("push", str(sample_path), remote)
     adb("shell", "am", "broadcast", "-a", "android.intent.action.MEDIA_SCANNER_SCAN_FILE", "-d", "file://" + remote, check=False)
+    time.sleep(3)
+    media = adb("shell", "content", "query", "--uri", "content://media/external/images/media", "--projection", "_id:_display_name", check=False).stdout.decode(errors="replace")
+    media_id = None
+    for row in media.splitlines():
+        if "retouch-probe.png" in row:
+            found = re.search(r"_id=(\d+)", row)
+            if found:
+                media_id = found.group(1)
+                break
+    content_uri = "content://media/external/images/media/" + media_id if media_id else "file://" + remote
+    report["content_uri_available"] = bool(media_id)
     adb("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1", timeout=30, check=False)
     time.sleep(8)
     # Only ordinary onboarding/permission controls. Purchase and subscription buttons are excluded.
@@ -109,17 +120,20 @@ try:
             report["onboarding_notice"] = "Offer or purchase screen observed; no purchase performed"
             break
         if not tap_label(nodes, ["Skip", "Not now", "Get started", "I agree", "Allow", "Continue", "Next", "Start"]):
-            break
-    adb("shell", "am", "start", "-n", package + "/" + activity, "-a", "android.intent.action.SEND", "-t", "image/png", "--eu", "android.intent.extra.STREAM", "file://" + remote, check=False)
+            time.sleep(4)
+    adb("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1", timeout=30, check=False)
+    time.sleep(4)
+    started = adb("shell", "am", "start", "-n", package + "/" + activity, "-a", "android.intent.action.SEND", "-t", "image/png", "--eu", "android.intent.extra.STREAM", content_uri, "-f", "0x10000001", check=False)
+    report["share_intent"] = (started.stdout + started.stderr).decode(errors="replace")[:1200]
     time.sleep(8)
-    for index in range(5):
+    for index in range(12):
         screen, nodes = capture(f"editor-{index:02}")
         score, geometry = locate(screen, sample)
         if score > 0.72:
             report["sample_match"] = {"score": float(score), "geometry": geometry}
             break
         if not tap_label(nodes, ["Allow", "Not now", "Skip", "Next", "Continue", "OK"]):
-            break
+            time.sleep(3)
     else:
         screen, nodes = capture("editor-final")
     score, geometry = locate(screen, sample)
@@ -161,5 +175,11 @@ except Exception as error:
     except Exception:
         pass
 finally:
+    try:
+        crash = adb("logcat", "-d", "-b", "crash", timeout=20, check=False).stdout
+        (args.out / "android-crash.log").write_bytes(crash)
+        report["abi_list"] = adb("shell", "getprop", "ro.product.cpu.abilist", timeout=10, check=False).stdout.decode(errors="replace").strip()
+    except Exception:
+        pass
     (args.out / "report.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))

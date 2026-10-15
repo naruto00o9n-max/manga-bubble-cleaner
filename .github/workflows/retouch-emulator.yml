@@ -1,0 +1,61 @@
+name: Retouch isolated emulator research
+on:
+  push:
+    branches: [research/retouch-emulator-20261015]
+    paths:
+      - tools/retouch-lab/emulator_probe.py
+      - .github/workflows/retouch-emulator.yml
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: magic
+            drive_id: 1_0aArUtYDTnlff8xLvsGoute3ZJ-5GYO
+            sha256: 82073183afc4f5d98346bbee37e1918f044f7d27c3ced3bc81a1f9473d2c93f3
+          - app: touch
+            drive_id: 1_c2QwyjPh159fZWnHGbJlldNPylh2ku3
+            sha256: 1e45998c95ab60a018ec2408f539dc4bf73833f1535df4d5fac508ef67d73194
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Enable KVM
+        run: |
+          sudo chmod 666 /dev/kvm
+      - name: Download the provided APK and verify its digest
+        env:
+          APK_DRIVE_ID: ${{ matrix.drive_id }}
+          APK_SHA256: ${{ matrix.sha256 }}
+        run: |
+          python -m pip install 'gdown>=5,<6' 'Pillow>=11,<13' 'requests>=2.32,<3' 'opencv-python-headless>=4.10,<5'
+          gdown "https://drive.google.com/uc?id=$APK_DRIVE_ID" -O /tmp/retouch.apk
+          python - <<'PY'
+          import hashlib, os
+          with open('/tmp/retouch.apk', 'rb') as source:
+              assert hashlib.file_digest(source, 'sha256').hexdigest() == os.environ['APK_SHA256']
+          PY
+      - uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          force-avd-creation: true
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
+          script: python tools/retouch-lab/emulator_probe.py --app ${{ matrix.app }} --apk /tmp/retouch.apk --out run-output/${{ matrix.app }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: retouch-emulator-${{ matrix.app }}
+          path: run-output/
+          retention-days: 7

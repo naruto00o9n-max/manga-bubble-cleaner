@@ -18,11 +18,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--app", choices=("magic", "touch"), required=True)
 parser.add_argument("--apk", required=True, type=Path)
 parser.add_argument("--out", required=True, type=Path)
+parser.add_argument("--abi", choices=("armeabi-v7a", "arm64-v8a"))
 args = parser.parse_args()
 args.out.mkdir(parents=True, exist_ok=True)
 package = "com.magic.retouch" if args.app == "magic" else "com.advasoft.touchretouch"
 activity = "com.magic.retouch.ui.activity.external.ExternalRemoveActivity" if args.app == "magic" else "com.advasoft.touchretouch.EditActivityNBO"
-report = {"app": args.app, "package": package, "actions": [], "status": "starting"}
+report = {"app": args.app, "package": package, "actions": [], "status": "starting", "requested_abi": args.abi}
 
 
 def adb(*values, timeout=60, check=True):
@@ -80,7 +81,11 @@ def locate(screen, sample):
 
 
 try:
-    installed = adb("install", "-r", "-g", str(args.apk), timeout=180)
+    adb("logcat", "-c", check=False)
+    install_args = ["install", "-r", "-g"]
+    if args.abi:
+        install_args += ["--abi", args.abi]
+    installed = adb(*install_args, str(args.apk), timeout=180)
     report["install"] = installed.stdout.decode(errors="replace").strip()
     report["status"] = "installed"
     adb("shell", "wm", "size", "480x800")
@@ -182,6 +187,19 @@ finally:
         activity = adb("shell", "dumpsys", "activity", "activities", timeout=15, check=False).stdout.decode(errors="replace")
         report["foreground_activity"] = [line.strip() for line in activity.splitlines()
                                          if "mResumedActivity" in line or "topResumedActivity" in line]
+        runtime = adb("logcat", "-d", "-v", "threadtime", timeout=20, check=False).stdout.decode(errors="replace")
+        diagnostic = []
+        for line in runtime.splitlines():
+            if not any(word in line for word in (package, "AndroidRuntime", "NativeBridge", "libc", "linker", "EGL", "OpenGL", "ActivityTaskManager")):
+                continue
+            line = re.sub(r"(https?://[^\s?]+)\?[^\s]+", r"\1?[redacted]", line)
+            line = re.sub(r"(?i)(token|uuid|pointid|android_id|decrypt|sign)([\s\"':=]+)[^\s,}]+", r"\1\2[redacted]", line)
+            line = re.sub(r"\b[0-9a-fA-F]{16,}\b", "[identifier]", line)
+            diagnostic.append(line)
+        (args.out / "android-runtime-redacted.log").write_text("\n".join(diagnostic))
+        details = adb("shell", "dumpsys", "package", package, timeout=15, check=False).stdout.decode(errors="replace")
+        report["installed_native_abis"] = [line.strip() for line in details.splitlines()
+                                            if "primaryCpuAbi=" in line or "secondaryCpuAbi=" in line]
     except Exception:
         pass
     (args.out / "report.json").write_text(json.dumps(report, indent=2))

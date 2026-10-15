@@ -16,9 +16,15 @@ jobs:
       matrix:
         include:
           - app: magic
+            variant: magic-arm32
+            abi: armeabi-v7a
+            gpu: swiftshader_indirect
             drive_id: 1_0aArUtYDTnlff8xLvsGoute3ZJ-5GYO
             sha256: 82073183afc4f5d98346bbee37e1918f044f7d27c3ced3bc81a1f9473d2c93f3
           - app: touch
+            variant: touch-mesa
+            abi: arm64-v8a
+            gpu: host
             drive_id: 1_c2QwyjPh159fZWnHGbJlldNPylh2ku3
             sha256: 1e45998c95ab60a018ec2408f539dc4bf73833f1535df4d5fac508ef67d73194
     steps:
@@ -31,6 +37,12 @@ jobs:
       - name: Enable KVM
         run: |
           sudo chmod 666 /dev/kvm
+      - name: Prepare Mesa software graphics
+        if: matrix.gpu == 'host'
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 > /tmp/retouch-xvfb.log 2>&1 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          echo "LIBGL_ALWAYS_SOFTWARE=1" >> "$GITHUB_ENV"
       - name: Download the provided APK and verify its digest
         env:
           APK_DRIVE_ID: ${{ matrix.drive_id }}
@@ -45,17 +57,17 @@ jobs:
           PY
       - uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
-          api-level: 33
+          api-level: 30
           target: google_apis
           arch: x86_64
           profile: pixel_2
           force-avd-creation: true
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
-          script: python tools/retouch-lab/emulator_probe.py --app ${{ matrix.app }} --apk /tmp/retouch.apk --out run-output/${{ matrix.app }}
+          emulator-options: -no-window -gpu ${{ matrix.gpu }} -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
+          script: python tools/retouch-lab/emulator_probe.py --app ${{ matrix.app }} --abi ${{ matrix.abi }} --apk /tmp/retouch.apk --out run-output/${{ matrix.app }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: retouch-emulator-${{ matrix.app }}
+          name: retouch-emulator-${{ matrix.variant }}
           path: run-output/
           retention-days: 7

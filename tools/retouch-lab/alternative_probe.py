@@ -120,6 +120,13 @@ def locate(screen):
 
 
 def gallery_choice(nodes):
+    if args.app == "picwish" and any(n.get("resource-id", "").endswith("/albumCtv") for n in nodes):
+        thumbnails = [n for n in nodes if n.get("clickable") == "true" and bounds(n)
+                      and 90 <= bounds(n)[2] - bounds(n)[0] <= 250
+                      and 90 <= bounds(n)[3] - bounds(n)[1] <= 250
+                      and 100 <= bounds(n)[1] and bounds(n)[3] < 800]
+        if thumbnails:
+            return tap(thumbnails[0])
     if args.app == "removeit" and "demo images" in text_of(nodes) and "recents" in text_of(nodes):
         # The custom picker mixes downloaded samples with actual media. Pick only
         # the clickable recent image, then confirm its selection on the next pass.
@@ -259,11 +266,12 @@ try:
                 adb("shell", "input", "swipe", int(x0 + 12 * scale), int(y0 + y * scale), int(x0 + 330 * scale), int(y0 + y * scale), 280)
             screen, nodes = capture("selection")
             # Apply through the visible UI; never activate a purchase or trial control.
-            apply_labels = ["Remove", "Erase", "GO", "Go", "Apply", "Done"]
+            apply_labels = ["Remove", "Remove Now", "Erase", "GO", "Go", "Apply", "Done"]
             if paywall(nodes):
                 report["status"] = "payment_required_before_processing"
             elif (args.app == "removeit" and tap_id(nodes, ["buttonremove", "ibaccept"])) or tap_label(nodes, apply_labels) or tap_id(nodes, ["btn_remove", "btn_erase", "btn_apply", "action_apply", "ibaccept"]):
                 report["apply_button_found"] = True
+                capture("processing-start")
                 time.sleep(25)
                 screen, nodes = capture("after-erase")
                 if paywall(nodes):

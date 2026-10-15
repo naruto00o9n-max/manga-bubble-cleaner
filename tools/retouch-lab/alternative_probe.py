@@ -68,7 +68,8 @@ def tap_label(nodes, labels):
         for node in nodes:
             if node.get("enabled") == "false":
                 continue
-            if label.casefold() in (node.get("text", "").strip().casefold(), node.get("content-desc", "").strip().casefold()):
+            values = [re.sub(r"\s+", " ", node.get(key, "")).strip().casefold() for key in ("text", "content-desc")]
+            if label.casefold() in values:
                 return tap(node)
     return False
 
@@ -156,25 +157,30 @@ try:
             if not (tap_label(nodes, ["Not now", "Skip", "Close", "Maybe later"]) or tap_id(nodes, ["close", "skip", "dismiss"])):
                 adb("shell", "input", "keyevent", "4")
             continue
-        if not tap_label(nodes, ["Skip", "Not now", "Get started", "I agree", "Agree", "Accept", "Continue", "Next", "Start", "Allow", "Allow all photos", "While using the app", "OK"]):
+        if not tap_label(nodes, ["Reject all", "Do not consent", "Reject", "Confirm choices", "Save choices", "Skip", "Not now", "Get started", "I agree", "Agree", "Accept", "Continue", "Next", "Start", "Allow", "Allow all photos", "While using the app", "OK", "Consent"]):
             break
     if spec.get("share_activity"):
         result = adb("shell", "am", "start", "-n", package + "/" + spec["share_activity"], "-a", "android.intent.action.SEND", "-t", "image/png", "--eu", "android.intent.extra.STREAM", uri, "-f", "0x10000001", check=False)
         report["share_intent"] = (result.stdout + result.stderr).decode(errors="replace")[:900]
         time.sleep(6)
     geometry = None
+    editor_requested = False
     for index in range(22):
         screen, nodes = capture(f"navigate-{index:02}")
         score, geometry = locate(screen)
         report["sample_match"] = {"score": score, "geometry": geometry}
         if score > 0.70 and not paywall(nodes):
+            if args.app == "snapedit" and not editor_requested and tap_label(nodes, ["Remove Objects"]):
+                editor_requested = True
+                time.sleep(4)
+                continue
             report["status"] = "sample_opened"
             break
         if paywall(nodes):
             report["offer_observed"] = True
             if not (tap_label(nodes, ["Not now", "Skip", "Close"]) or tap_id(nodes, ["close", "skip", "dismiss"])):
                 adb("shell", "input", "keyevent", "4")
-        elif tap_label(nodes, ["Allow", "Allow all photos", "While using the app", "OK", "Not now", "Skip", "Next", "Continue", "Got it"]):
+        elif tap_label(nodes, ["Reject all", "Do not consent", "Reject", "Confirm choices", "Allow", "Allow all photos", "While using the app", "OK", "Not now", "Skip", "Next", "Continue", "Got it", "Consent"]):
             pass
         elif gallery_choice(nodes):
             pass

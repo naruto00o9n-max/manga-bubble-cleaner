@@ -108,6 +108,15 @@ def locate(screen):
 
 
 def gallery_choice(nodes):
+    if args.app == "removeit" and "demo images" in text_of(nodes) and "recents" in text_of(nodes):
+        # The custom picker mixes downloaded samples with actual media. Pick only
+        # the clickable recent image, then confirm its selection on the next pass.
+        recent = [n for n in nodes if n.get("resource-id", "").endswith("/ivImage")
+                  and n.get("clickable") == "true"]
+        if not report.get("recent_chosen") and recent:
+            report["recent_chosen"] = True
+            return tap(recent[-1])
+        return tap_id(nodes, ["ic_select"])
     for node in nodes:
         if "alternative-probe" in (node.get("text", "") + node.get("content-desc", "")):
             return tap(node)
@@ -181,6 +190,11 @@ try:
             if not (tap_label(nodes, ["Not now", "Skip", "Close"]) or tap_id(nodes, ["close", "skip", "dismiss"])):
                 adb("shell", "input", "keyevent", "4")
         elif tap_label(nodes, ["Reject all", "Do not consent", "Reject", "Confirm choices", "Close", "Agree and Continue", "Allow", "Allow all photos", "While using the app", "OK", "Not now", "Skip", "Next", "Continue", "Got it", "Consent"]):
+            pass
+        elif args.app == "picwish" and "try now" in text_of(nodes):
+            adb("shell", "input", "keyevent", "4")
+            time.sleep(2)
+        elif args.app == "picwish" and tap_id(nodes, ["closeiv"]):
             pass
         elif gallery_choice(nodes):
             pass

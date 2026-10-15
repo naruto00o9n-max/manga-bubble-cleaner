@@ -157,7 +157,7 @@ try:
             if not (tap_label(nodes, ["Not now", "Skip", "Close", "Maybe later"]) or tap_id(nodes, ["close", "skip", "dismiss"])):
                 adb("shell", "input", "keyevent", "4")
             continue
-        if not tap_label(nodes, ["Reject all", "Do not consent", "Reject", "Confirm choices", "Save choices", "Skip", "Not now", "Get started", "I agree", "Agree", "Accept", "Continue", "Next", "Start", "Allow", "Allow all photos", "While using the app", "OK", "Consent"]):
+        if not tap_label(nodes, ["Reject all", "Do not consent", "Reject", "Confirm choices", "Save choices", "Close", "Skip", "Not now", "Get started", "I agree", "Agree", "Agree and Continue", "Accept", "Continue", "Next", "Start", "Allow", "Allow all photos", "While using the app", "OK", "Consent"]):
             break
     if spec.get("share_activity"):
         result = adb("shell", "am", "start", "-n", package + "/" + spec["share_activity"], "-a", "android.intent.action.SEND", "-t", "image/png", "--eu", "android.intent.extra.STREAM", uri, "-f", "0x10000001", check=False)
@@ -180,7 +180,7 @@ try:
             report["offer_observed"] = True
             if not (tap_label(nodes, ["Not now", "Skip", "Close"]) or tap_id(nodes, ["close", "skip", "dismiss"])):
                 adb("shell", "input", "keyevent", "4")
-        elif tap_label(nodes, ["Reject all", "Do not consent", "Reject", "Confirm choices", "Allow", "Allow all photos", "While using the app", "OK", "Not now", "Skip", "Next", "Continue", "Got it", "Consent"]):
+        elif tap_label(nodes, ["Reject all", "Do not consent", "Reject", "Confirm choices", "Close", "Agree and Continue", "Allow", "Allow all photos", "While using the app", "OK", "Not now", "Skip", "Next", "Continue", "Got it", "Consent"]):
             pass
         elif gallery_choice(nodes):
             pass
@@ -215,16 +215,19 @@ try:
                     report["status"] = "payment_required_after_selection"
                 else:
                     report["status"] = "erase_attempt_recorded"
+                    if tap_label(nodes, ["Done"]):
+                        time.sleep(3)
+                        _, nodes = capture("tool-finalized")
                     if tap_label(nodes, ["Save", "Export", "Download"]) or tap_id(nodes, ["btn_save", "action_save", "iv_save", "save_image", "btn_export"]):
                         time.sleep(3)
                         _, nodes = capture("export")
                         if not paywall(nodes):
-                            tap_label(nodes, ["Save to gallery", "Save image", "Save", "Save as copy", "Save a copy", "Gallery"])
+                            tap_label(nodes, ["Save to gallery", "Save image", "Save", "Save and Exit", "Save as copy", "Save a copy", "Gallery"])
                         time.sleep(3)
                         capture("export-final")
             else:
                 report["status"] = "selection_recorded_no_apply_button"
-            paths = adb("shell", "find", "/sdcard/Pictures", "/sdcard/DCIM", "/sdcard/Download", "-type", "f", check=False).stdout.decode(errors="replace").splitlines()
+            paths = adb("shell", "find", "/sdcard/", "-maxdepth", "4", "-type", "f", check=False).stdout.decode(errors="replace").splitlines()
             exported = []
             for index, path in enumerate(paths):
                 if path != remote and path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):

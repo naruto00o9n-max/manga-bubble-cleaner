@@ -15,6 +15,7 @@ import requests
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--app", required=True)
+parser.add_argument("--snapedit-super", action="store_true", help="Select the existing Super Erase UI switch; stop if it is unavailable")
 parser.add_argument("--block-network", action="store_true", help="Block emulator non-loopback IPv4 and IPv6 before drawing the mask")
 parser.add_argument("--apk", required=True, type=Path)
 parser.add_argument("--out", required=True, type=Path)
@@ -24,6 +25,8 @@ args.out.mkdir(parents=True, exist_ok=True)
 package = spec["package"]
 report = {"app": args.app, "package": package, "version": spec["version"], "sha256": spec["sha256"], "actions": [], "status": "starting"}
 sample = None
+existing_images = set()
+report["requested_mode"] = "super" if args.snapedit_super else "ordinary"
 
 
 def adb(*values, check=True, timeout=60):
@@ -213,6 +216,22 @@ try:
         report["status"] = "ui_recorded_sample_not_opened"
         geometry = None
     if geometry:
+        paths_before = adb("shell", "find", "/sdcard/", "-maxdepth", "4", "-type", "f", check=False).stdout.decode(errors="replace").splitlines()
+        existing_images = set(paths_before)
+        if args.snapedit_super:
+            if args.app != "snapedit":
+                raise RuntimeError("The Super Erase flag applies only to SnapEdit")
+            switch = next((n for n in nodes if n.get("resource-id", "").endswith("/super_erase_switch")), None)
+            if switch is None:
+                raise RuntimeError("Super Erase switch is not available in this screen")
+            if switch.get("checked") != "true":
+                tap(switch)
+            time.sleep(3)
+            screen, nodes = capture("super-mode-selected")
+            report["super_switch_checked"] = any(n.get("resource-id", "").endswith("/super_erase_switch") and n.get("checked") == "true" for n in nodes)
+            if paywall(nodes) or not report["super_switch_checked"]:
+                report["mode_status"] = "not_enabled"
+                raise RuntimeError("Normal UI did not enable Super Erase; no purchase attempted")
         if args.block_network:
             report["network_test"] = "requested"
             adb("root")
@@ -231,7 +250,7 @@ try:
             for y in range(670, 1041, 24):
                 adb("shell", "input", "swipe", int(x0 + 12 * scale), int(y0 + y * scale), int(x0 + 330 * scale), int(y0 + y * scale), 280)
             screen, nodes = capture("selection")
-            # Ordinary eraser only; do not select Pro/Super Erase or purchase controls.
+            # Apply through the visible UI; never activate a purchase or trial control.
             apply_labels = ["Remove", "Erase", "GO", "Go", "Apply", "Done"]
             if paywall(nodes):
                 report["status"] = "payment_required_before_processing"
@@ -258,7 +277,7 @@ try:
             paths = adb("shell", "find", "/sdcard/", "-maxdepth", "4", "-type", "f", check=False).stdout.decode(errors="replace").splitlines()
             exported = []
             for index, path in enumerate(paths):
-                if path != remote and path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                if path != remote and path not in existing_images and path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
                     destination = args.out / (f"export-{index:02}" + Path(path).suffix)
                     adb("pull", path, str(destination), check=False)
                     if destination.exists():

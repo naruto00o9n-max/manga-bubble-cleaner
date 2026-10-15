@@ -1,0 +1,12 @@
+__pycache__/
+*.apk
+*.xapk
+*.der
+*.jpg
+*.png
+*.xml
+private/
+.venv/
+profile.json
+*profile*.json
+.retouch-avd/

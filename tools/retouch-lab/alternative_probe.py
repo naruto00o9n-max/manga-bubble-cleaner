@@ -74,6 +74,14 @@ def tap_label(nodes, labels):
                 continue
             values = [re.sub(r"\s+", " ", node.get(key, "")).strip().casefold() for key in ("text", "content-desc")]
             if label.casefold() in values:
+                if args.app == "picwish" and node.get("resource-id", "").endswith("/menuTv"):
+                    label_bounds = bounds(node)
+                    if label_bounds:
+                        cx = (label_bounds[0] + label_bounds[2]) // 2
+                        for icon in nodes:
+                            b = bounds(icon)
+                            if icon.get("resource-id", "").endswith("/menuItemView") and b and b[0] <= cx <= b[2] and 0 <= label_bounds[1] - b[3] <= 40:
+                                return tap(icon)
                 return tap(node)
     return False
 
@@ -254,7 +262,7 @@ try:
             apply_labels = ["Remove", "Erase", "GO", "Go", "Apply", "Done"]
             if paywall(nodes):
                 report["status"] = "payment_required_before_processing"
-            elif (args.app == "removeit" and tap_id(nodes, ["ibaccept"])) or tap_label(nodes, apply_labels) or tap_id(nodes, ["btn_remove", "btn_erase", "btn_apply", "action_apply", "ibaccept"]):
+            elif (args.app == "removeit" and tap_id(nodes, ["buttonremove", "ibaccept"])) or tap_label(nodes, apply_labels) or tap_id(nodes, ["btn_remove", "btn_erase", "btn_apply", "action_apply", "ibaccept"]):
                 report["apply_button_found"] = True
                 time.sleep(25)
                 screen, nodes = capture("after-erase")

@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [snapedit]
+        app: [removeit, picwish]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -39,7 +39,7 @@ jobs:
           force-avd-creation: true
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
-          script: python tools/retouch-lab/alternative_probe.py --snapedit-super --app ${{ matrix.app }} --apk /tmp/alternative.apk --out run-output/${{ matrix.app }}
+          script: python tools/retouch-lab/alternative_probe.py --app ${{ matrix.app }} --apk /tmp/alternative.apk --out run-output/${{ matrix.app }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

@@ -123,3 +123,7 @@ python3 -m unittest -v test_cloud
 ثُبت ملفا Drive بنجاح على Android 11. بعد تصحيح نقل الصورة إلى MediaStore، تعطل محرر TouchRetouch بخطأ `SIGSEGV` في خيط الرسوميات، وبقي Retouch 2.2.4.2 على شاشة البداية. صورة Android 13 لم تثبتهما لعدم دعم ARM (`INSTALL_FAILED_NO_MATCHING_ABIS`). لم تُصدر صورة معالجة من ملفي Drive؛ يلزم جهاز ARM أو محاكي متوافق لاستكمال ذلك. التفاصيل وسجلات التشغيل في [FINDINGS.md](FINDINGS.md).
 
 نجاح خطوة GitHub وحده لا يثبت نجاح إزالة النص؛ المرجع هو `report.json` والصورة المصدرة إن وُجدت داخل Artifacts. لا تُنسب نتائج API للنسخة الأحدث إلى تشغيل ملفي Drive.
+
+## اختبارات تطبيقات بديلة
+
+راجع [ALTERNATIVE_FINDINGS.md](ALTERNATIVE_FINDINGS.md) لنتائج SnapEdit وRemoveIt وPicWish المعلنة كنسخ معدلة. نجح SnapEdit في الحذف اليدوي والحفظ الفعلي في الوضع العادي وSuper Erase، مع تغيير بعض تفاصيل الرسم. حدود استخدام APK غير محسومة، ورفض الخادم طلب Python غير الموثق. رصيد الموقع الرسمي التجريبي انخفض في اختبار منفصل. لم يتغير موفر البوت الافتراضي بناءً على هذا الاختبار.

@@ -15,7 +15,7 @@
 | Retouch_2.2.4.2.apk | com.magic.retouch — 2.2.4.2 (53) | 82073183afc4f5d98346bbee37e1918f044f7d27c3ced3bc81a1f9473d2c93f3 |
 | Retouch-v5.0 beta-MOD-GMA-(Getmodsapk.com).apk | com.advasoft.touchretouch — 5.0 beta | 1e45998c95ab60a018ec2408f539dc4bf73833f1535df4d5fac508ef67d73194 |
 
-هما تطبيقان مختلفان. ملف TouchRetouch 5.0 لا يطلب `android.permission.INTERNET`. يحتوي `libtouchretouch.so` ونماذج TFLite وملفات JPACK؛ تظهر رموز مثل `findNearestPatches`, `renderImagePatches`, `NNMeshRetouchAlgorithm` و`GLPoissonBlend`. هذه قرائن على أدوات معالجة محلية تجمع البحث عن رقع ومعالجة عصبية ومزج حدود. لا تكفي الرموز وحدها لتحديد دور كل نموذج أو مقارنة جودته على مانهوا.
+هما تطبيقان مختلفان. ملف TouchRetouch 5.0 لا يطلب `android.permission.INTERNET`. يحتوي `libtouchretouch.so` ونماذج TFLite وملفات JPACK؛ تظهر رموز مثل `findNearestPatches`, `renderImagePatches`, `NNMeshRetouchAlgorithm` و`GLPoissonBlend`. هذه قرائن على أدوات محلية للبحث عن رقع ومزج الحدود، مع وجود نماذج تعلم آلي. لا تكفي الرموز وحدها لتحديد دور كل نموذج أو مقارنة جودته على مانهوا.
 
 في ملف `com.magic.retouch` يوجد مسار محلي يصل إلى `CGEFaceTracker.inpaint`، وفي المكتبة الأصلية دوال `MyPatchMatch.imageInpaint`, `propagation`, `randomSearch`. ويوجد مسار خادم مستقل. وجود PatchMatch في المحلي لا يثبت نوع النموذج الذي يعمل على الخادم.
 
@@ -69,4 +69,16 @@
 
 نجحت أربعة اختبارات لسلوك الموصل: حفظ البكسلات خارج القناع بعد تغيير حجم نتيجة الخادم، والتعامل مع انتظار 409، ووقف العملية عند رفض الرصيد، ورفض القناع الفارغ أو ذي الأبعاد المختلفة قبل الشبكة. نجح فحص Python وصياغة Bash واستيراد أمر Discord. لم يُشغّل اتصال Discord حيًا لعدم وجود توكن بوت في البيئة.
 
-تتوفر أداة ADB لتثبيت التطبيق وإدخال الصور والتقاط الشاشة. بيئة العمل لا تتيح KVM. أقلع Android 11 برمجيًا واتصل ADB، لكن النظام أعاد التشغيل أثناء محاولات التثبيت وفشلت عمليات التثبيت برسالة Broken pipe. جارٍ فحص محاكي أقدم؛ لا تُنسب صور الاختبار السحابي إلى تشغيل التطبيقين داخل المحاكي.
+تتوفر أداة ADB لتثبيت التطبيق وإدخال الصور والتقاط الشاشة. بيئة العمل المحلية لا تتيح KVM؛ المحاكاة البرمجية اتصلت عبر ADB لكنها أعادت تشغيل النظام وفشل التثبيت برسالة Broken pipe. لذلك نُقل اختبار الملفين إلى GitHub Actions مع KVM، في فرع البحث فقط.
+
+| التشغيل | النظام | ما تحقق |
+| --- | --- | --- |
+| [المحاولة الأولى](https://github.com/naruto00o9n-max/manga-bubble-cleaner/actions/runs/38679341140) | Android 11 | تثبيت الملفين بنجاح، وظهور شاشة تعريف TouchRetouch وشاشة بداية Retouch؛ لم تُفتح الصورة |
+| [المحاولة المصححة](https://github.com/naruto00o9n-max/manga-bubble-cleaner/actions/runs/38679765260) | Android 11 | نقل الصورة عبر MediaStore وفتح Activity المشاركة مع صلاحية قراءة؛ بقي Retouch على البداية وتعطل محرر TouchRetouch |
+| [فحص التوافق الأخير](https://github.com/naruto00o9n-max/manga-bubble-cleaner/actions/runs/38680486126) | Android 13 | رفض تثبيت الملفين: `INSTALL_FAILED_NO_MATCHING_ABIS`؛ صورة Google APIs تعلن x86_64 فقط دون ترجمة ARM |
+
+في المحاولة المصححة أكد تقرير كل تطبيق `install: Success` و`content_uri_available: true`. سجل TouchRetouch ثلاثة أعطال أصلية من نوع `SIGSEGV / SEGV_ACCERR` في `GLThread` عند محاولة المحرر. سجل الأعطال الخاص بـRetouch فارغ، لكنه لم يتجاوز شاشة البداية ضمن مدة الاختبار. صورة المحاكي x86_64 تعلن دعم ARM64 وARMv7 بالترجمة؛ لا يثبت ذلك توافق مكتبات الرسوميات الخاصة بالتطبيقين.
+
+لم تُصدر صورة ترميم من أيٍّ من ملفي Drive بهذه المحاولات. نجاح خطوة GitHub يعني اكتمال جمع التشخيص، وليس نجاح إزالة النص. صور الاختبار السحابي الثلاث من الموصل مع الإصدار الأحدث، ولا تُنسب إلى تشغيل التطبيقين داخل المحاكي.
+
+فحص Android 13 لا يعني أن التطبيقين يتعطلان على هاتف ARM بنظام Android 13؛ تعذر تثبيتهما على صورة المحاكي المحددة. يلزم جهاز ARM أو محاكي بترجمة ARM متوافقة لاستكمال اختبار الواجهة والتصدير. لا يمكن حسم سلوك النسخة المعدلة دون نقاط من اختبار الواجهة غير المكتمل.

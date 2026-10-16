@@ -19,12 +19,16 @@ parser.add_argument("--snapedit-super", action="store_true", help="Select the ex
 parser.add_argument("--block-network", action="store_true", help="Block emulator non-loopback IPv4 and IPv6 before drawing the mask")
 parser.add_argument("--apk", required=True, type=Path)
 parser.add_argument("--out", required=True, type=Path)
+parser.add_argument("--spec-file", type=Path, default=Path(__file__).with_name("alternative-apps.json"))
+parser.add_argument("--splits", nargs="*", type=Path, default=[])
+parser.add_argument("--observe", action="store_true")
 args = parser.parse_args()
-spec = next(row for row in json.loads(Path(__file__).with_name("alternative-apps.json").read_text()) if row["name"] == args.app)
+spec = next(row for row in json.loads(args.spec_file.read_text()) if row["name"] == args.app)
 args.out.mkdir(parents=True, exist_ok=True)
 package = spec["package"]
 report = {"app": args.app, "package": package, "version": spec["version"], "sha256": spec["sha256"], "actions": [], "status": "starting"}
 sample = None
+observer = None
 existing_images = set()
 report["requested_mode"] = "super" if args.snapedit_super else "ordinary"
 
@@ -155,7 +159,11 @@ def gallery_choice(nodes):
 
 try:
     adb("logcat", "-c", check=False)
-    report["install"] = adb("install", "-r", "-g", str(args.apk), timeout=180).stdout.decode(errors="replace").strip()
+    report["install"] = adb("install-multiple" if args.splits else "install", "-r", "-g", str(args.apk), *[str(p) for p in args.splits], timeout=180).stdout.decode(errors="replace").strip()
+    if args.observe:
+        from snapedit_observer import Observer
+        adb("shell", "am", "force-stop", package, check=False)
+        observer = Observer(package, args.out, Path(__file__).with_name("snapedit-capture-public.pem"), Path(__file__).with_name("snapedit_observe.js"))
     adb("shell", "wm", "size", "540x960")
     adb("shell", "wm", "density", "200")
     for setting in ("window_animation_scale", "transition_animation_scale", "animator_duration_scale"):
@@ -307,6 +315,11 @@ except Exception as error:
     except Exception:
         pass
 finally:
+    if observer is not None:
+        try:
+            observer.close()
+        except Exception:
+            report["observer_close_error"] = True
     try:
         if args.block_network and report.get("network_test") == "non_loopback_ipv4_and_ipv6_blocked_before_mask":
             for firewall in ("iptables", "ip6tables"):

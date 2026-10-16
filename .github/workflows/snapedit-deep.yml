@@ -1,0 +1,53 @@
+name: SnapEdit original client protocol research
+on:
+  push:
+    branches: [research/retouch-emulator-20261015]
+    paths:
+      - .github/workflows/snapedit-deep.yml
+      - tools/retouch-lab/snapedit_*.py
+      - tools/retouch-lab/snapedit_*.js
+      - tools/retouch-lab/snapedit-capture-public.pem
+permissions:
+  contents: read
+jobs:
+  original-client:
+    if: contains(github.event.head_commit.message, '[snapedit-deep]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Prepare KVM and research dependencies
+        run: |
+          sudo chmod 666 /dev/kvm
+          python -m pip install 'Pillow>=11,<13' 'requests>=2.32,<3' 'opencv-python-headless>=4.10,<5' 'cryptography>=44,<47' 'frida==16.7.19'
+      - name: Download verified original client and observer
+        run: python tools/retouch-lab/snapedit_prepare.py /tmp/snapedit-original
+      - uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: false
+          force-avd-creation: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
+          script: |
+            adb -e root
+            adb -e wait-for-device
+            adb -e push /tmp/snapedit-original/frida-server /data/local/tmp/snapedit-observer
+            adb -e shell chmod 755 /data/local/tmp/snapedit-observer
+            adb -e shell /data/local/tmp/snapedit-observer -D
+            adb -e forward tcp:27042 tcp:27042
+            python tools/retouch-lab/alternative_probe.py --app snapedit --observe --spec-file /tmp/snapedit-original/original-spec.json --apk /tmp/snapedit-original/snapedit.app.remove.apk --splits /tmp/snapedit-original/config.armeabi_v7a.apk /tmp/snapedit-original/config.en.apk /tmp/snapedit-original/config.mdpi.apk --out run-output/original-ordinary
+            python tools/retouch-lab/alternative_probe.py --app snapedit --observe --snapedit-super --spec-file /tmp/snapedit-original/original-spec.json --apk /tmp/snapedit-original/snapedit.app.remove.apk --splits /tmp/snapedit-original/config.armeabi_v7a.apk /tmp/snapedit-original/config.en.apk /tmp/snapedit-original/config.mdpi.apk --out run-output/original-super
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: snapedit-original-observation
+          path: run-output/
+          retention-days: 7
